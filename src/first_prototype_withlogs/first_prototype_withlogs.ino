@@ -27,7 +27,7 @@ float distance;
 const float MAX_HEIGHT = 50.0;
 const float MIN_HEIGHT = 10.0;
 const float RADIUS = 11.0;
-const float MAX_VOLUME = MAX_HEIGHT*PI*pow(RADIUS,2);
+const float MAX_VOLUME = (MAX_HEIGHT-MIN_HEIGHT)*PI*pow(RADIUS,2);
 float volumeCalc, capacityCalc;
 
 /* Wi-Fi Connection*/
@@ -103,39 +103,6 @@ char *jsonMQTTmsgLOG(const char *device_id, char *log_msg) {
 }
 
 /**
-   This function freezes the program until wifi is connected.
-   WiFi.begin() needs to be called before this function.
-   @param none
-   @return
-   @see http://arduino-esp8266.readthedocs.io/en/latest/esp8266wifi/readme.html
-*/
-void connectWifi() {
-  int countDelay = 0;
-  Serial.print("Your are connecting to: ");
-  Serial.println(ssid);
-
-  WiFi.begin(ssid, password);
-
-  Serial.print("Trying to connect");
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(1000);
-    Serial.print(".");
-
-    // if the wifi connection delays more than 60s then generate log warning
-    if (countDelay > 60) {
-      log_msg = "WARNING: TAKING TOO MUCH TIME TO CONNECT WI-FI\n";
-      sendMessageToBroker(message_log);
-      countDelay = 0;
-    } else {
-      countDelay++;
-    }
-  }
-
-  Serial.println();
-  Serial.println("Device connected.");
-}
-
-/**
    Send any MQTT message to the broker. The message content can be either distance measure or log.
    @param tMessage: message type (message_data or message_log)
    @return
@@ -175,6 +142,39 @@ void sendMessageToBroker(int tMessage) {
   client.loop();
   mqtt_topic = "data/mdal5af32cp0/pub/";
 
+}
+
+/**
+   This function freezes the program until wifi is connected.
+   WiFi.begin() needs to be called before this function.
+   @param none
+   @return
+   @see http://arduino-esp8266.readthedocs.io/en/latest/esp8266wifi/readme.html
+*/
+void connectWifi() {
+  int countDelay = 0;
+  Serial.print("Your are connecting to: ");
+  Serial.println(ssid);
+
+  WiFi.begin(ssid, password);
+
+  Serial.print("Trying to connect");
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(1000);
+    Serial.print(".");
+
+    // if the wifi connection delays more than 60s then generate log warning
+    if (countDelay > 60) {
+      log_msg = "WARNING: TAKING TOO MUCH TIME TO CONNECT WI-FI\n";
+      sendMessageToBroker(message_log);
+      countDelay = 0;
+    } else {
+      countDelay++;
+    }
+  }
+
+  Serial.println();
+  Serial.println("Device connected.");
 }
 
 /**
@@ -254,7 +254,7 @@ void setup() {
     pinMode(echoPin, INPUT); // Sets the echoPin as an Input
 
     measureDistance();
-    volumeCalc = distance*PI*pow(RADIUS,2);
+    volumeCalc = (MAX_HEIGHT-distance)*PI*pow(RADIUS,2);
     capacityCalc = (volumeCalc/MAX_VOLUME)*100;
     sendMessageToBroker(message_data);
 
