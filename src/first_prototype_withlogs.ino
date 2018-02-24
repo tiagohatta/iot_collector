@@ -17,14 +17,18 @@
 #include <espEasyMemory.h> // Credits to Luan Ferreira: https://github.com/Luanf/espEasyPersistentMemory
 
 /* Ultrasonic Sensor */
-const float MAX_HEIGHT = 50.0;
-//const float MIN_HEIGHT = 10.0;
 // defines pins numbers
 const int trigPin = 4;  //D2
 const int echoPin = 14;  //D5
 // variables for measure
 long duration;
 float distance;
+// collector volume
+const float MAX_HEIGHT = 50.0;
+const float MIN_HEIGHT = 10.0;
+const float RADIUS = 11.0;
+const float MAX_VOLUME = MAX_HEIGHT*PI*pow(RADIUS,2);
+float volumeCalc, capacityCalc;
 
 /* Wi-Fi Connection*/
 const char* ssid     = "Ninja";
@@ -72,12 +76,13 @@ const int SLEEP_TIME = 6;
    @return Data in Json format
    @see https://konker.atlassian.net/wiki/display/DEV/Guia+de+Uso+da+Plataforma+Konker
 */
-char *jsonMQTTmsgDATA(const char *device_id, const char *metric, float value) {
+char *jsonMQTTmsgDATA(const char *device_id, float volume, float height, float capacity) {
   StaticJsonBuffer<200> jsonMQTT;
   JsonObject& jsonMSG = jsonMQTT.createObject();
   jsonMSG["deviceId"] = device_id;
-  jsonMSG["metric"] = metric;
-  jsonMSG["value"] = value;
+  jsonMSG["volume[cm3]"] = volume;
+  jsonMSG["height[cm]"] = height;
+  jsonMSG["capacity[%]"] = capacity;
   jsonMSG.printTo(bufferJ, sizeof(bufferJ));
   return bufferJ;
 }
@@ -160,7 +165,7 @@ void sendMessageToBroker(int tMessage) {
 
   if (tMessage == message_data) {
     strcat(mqtt_topic, "distance");
-    mqtt_msg = jsonMQTTmsgDATA("Iot Battery Collector", "cm", distance);
+    mqtt_msg = jsonMQTTmsgDATA("Iot Battery Collector", volumeCalc, distance, capacityCalc);
   } else if (tMessage == message_log) {
     strcat(mqtt_topic, "logs");
     mqtt_msg = jsonMQTTmsgLOG("Iot Battery Collector", log_msg);
@@ -249,6 +254,8 @@ void setup() {
     pinMode(echoPin, INPUT); // Sets the echoPin as an Input
 
     measureDistance();
+    volumeCalc = distance*PI*pow(RADIUS,2);
+    capacityCalc = (volumeCalc/MAX_VOLUME)*100;
     sendMessageToBroker(message_data);
 
     // Send data to cloud service via MQQT
